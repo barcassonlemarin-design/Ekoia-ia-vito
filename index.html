@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="fr" class="theme-medium">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ekoia v5.4.0 - Édition Blindée & Unifiée</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: { 950: '#05070a', 900: '#090d16', 800: '#0f172a', 700: '#1e293b', 600: '#334155' },
+                        medium: { 950: '#0c1222', 900: '#131b31', 800: '#1e294b', 700: '#334166', 600: '#47558a' },
+                        light: { 950: '#f8fafc', 900: '#f1f5f9', 800: '#e2e8f0', 700: '#cbd5e1', 600: '#94a3b8' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.3); border-radius: 4px; }
+        
+        body.theme-light { background-color: #f1f5f9; color: #0f172a; }
+        body.theme-dark { background-color: #05070a; color: #f1f5f9; }
+        body.theme-medium { background-color: #0c1222; color: #f1f5f9; }
+        
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        
+        .cursor-blink::after {
+            content: '❚';
+            display: inline-block;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+            color: #10b981;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .device-phone-frame {
+            width: 100% !important;
+            max-width: 400px !important;
+            height: 850px !important;
+            max-height: 92vh !important;
+            margin: auto;
+            border-radius: 30px;
+            border: 8px solid #1e293b;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); }
+        }
+        .toast-notification { animation: fadeInOut 3s ease-in-out forwards; }
+
+        .ekoia-gradient-text {
+            background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .ekoia-badge-bg {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(6, 182, 212, 0.15) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center overflow-hidden theme-medium p-2">
+
+    <!-- NOTIFICATIONS -->
+    <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+
+    <!-- MODAL CHOIX DE L'APPAREIL -->
+    <div id="deviceSelectModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-8 shadow-2xl text-center space-y-6">
+            <div class="w-16 h-16 ekoia-badge-bg rounded-2xl flex items-center justify-center mx-auto text-3xl text-emerald-400">
+                <i class="fa-solid fa-laptop-mobile"></i>
+            </div>
+            <div class="space-y-2">
+                <h2 class="font-bold text-lg text-white">Êtes-vous sur PC ou sur téléphone ?</h2>
+                <p class="text-xs text-slate-400">L'interface s'adaptera immédiatement à votre support.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4 pt-2">
+                <button onclick="selectDevice('desktop')" class="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl flex flex-col items-center gap-3 transition cursor-pointer group">
+                    <i class="fa-solid fa-desktop text-2xl text-emerald-400 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-semibold text-slate-200">Ordinateur (PC)</span>
+                </button>
+                <button onclick="selectDevice('phone')" class="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl flex flex-col items-center gap-3 transition cursor-pointer group">
+                    <i class="fa-solid fa-mobile-screen text-2xl text-cyan-400 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-semibold text-slate-200">Téléphone / Tablette</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARAMÈTRES & CONFIDENTIALITÉ -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h2 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-tree ekoia-gradient-text"></i> Paramètres & Confidentialité</h2>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-4 text-xs text-slate-300">
+                <div class="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl text-emerald-200 text-[11px] leading-relaxed">
+                    <p class="font-bold mb-1"><i class="fa-solid fa-shield-halved"></i> 100% Local & Open Source</p>
+                    <p>Aucune donnée n'est collectée. Tout est stocké uniquement dans le <strong>localStorage</strong> de votre appareil.</p>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-200">Voix du système :</label>
+                    <select id="voiceSelectDropdown" onchange="changeSystemVoice(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-200 focus:outline-none cursor-pointer">
+                        <option value="">Chargement des voix...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-200">Thème :</label>
+                    <select id="themeSelect" onchange="changeTheme(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-200 focus:outline-none cursor-pointer">
+                        <option value="dark">Sombre</option>
+                        <option value="light">Clair</option>
+                        <option value="medium">Moyen (Défaut)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs rounded-xl cursor-pointer">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SÉLECTION D'ENTITÉ -->
+    <div id="entitySelectModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h2 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-users ekoia-gradient-text"></i> Choisir une entité</h2>
+                <button onclick="closeEntitySelectModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="grid grid-cols-1 gap-2.5 max-h-80 overflow-y-auto custom-scrollbar p-1" id="entityGridModal"></div>
+            <div class="p-3 bg-slate-950/60 border border-dashed border-slate-700 rounded-2xl flex items-center justify-between text-slate-400 text-xs">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i>
+                    <span>Entité <strong>Yuri</strong></span>
+                </div>
+                <span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-800">Prochainement</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEUR GLOBAL -->
+    <div id="appContainer" class="w-full h-full flex overflow-hidden transition-all duration-300 relative">
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="w-72 flex flex-col border-r border-slate-700/40 bg-slate-900/90 backdrop-blur-md z-20 shrink-0 transition-all duration-300">
+            <div class="p-4 flex items-center justify-between border-b border-slate-700/40 gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl ekoia-badge-bg flex items-center justify-center text-base shadow-inner shrink-0 text-emerald-400">
+                        <i class="fa-solid fa-leaf"></i>
+                    </div>
+                    <span class="font-extrabold text-sm tracking-wide ekoia-gradient-text truncate">EKOIA</span>
+                </div>
+                <button onclick="toggleSidebar()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition cursor-pointer shrink-0">
+                    <i class="fa-solid fa-angles-left"></i>
+                </button>
+            </div>
+
+            <div class="p-3">
+                <button onclick="openEntitySelectModal()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-medium py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition shadow-lg text-xs cursor-pointer">
+                    <i class="fa-solid fa-plus"></i> <span>Nouvelle discussion</span>
+                </button>
+            </div>
+
+            <div id="chatHistoryList" class="flex-1 overflow-y-auto custom-scrollbar px-2 py-1 space-y-1"></div>
+
+            <div class="p-3 border-t border-slate-700/40 flex flex-col items-center gap-2 shrink-0 bg-slate-950/40">
+                <button onclick="openSettingsModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-medium transition cursor-pointer">
+                    <i class="fa-solid fa-gear text-emerald-400"></i> <span>Paramètres</span>
+                </button>
+                <div class="w-full bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-xl text-center">
+                    <span id="ecosiaBadge" class="text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5"><i class="fa-solid fa-seedling"></i> 0.00 arbres financés</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CHAT AREA -->
+        <main class="flex-1 flex flex-col h-full relative bg-slate-950/20 min-w-0">
+            <header class="h-16 border-b border-slate-700/40 bg-slate-900/30 backdrop-blur-md px-4 flex items-center justify-between z-10 shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button onclick="toggleSidebar()" class="p-2 bg-slate-800/60 hover:bg-slate-800 text-emerald-400 rounded-xl transition cursor-pointer">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div id="currentEntityIcon" class="w-9 h-9 rounded-xl ekoia-badge-bg flex items-center justify-center text-emerald-400 shrink-0">
+                        <i class="fa-solid fa-leaf"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 id="currentEntityName" class="font-semibold text-sm truncate">Ekoia Standard</h1>
+                        <p id="currentEntityDesc" class="text-[11px] text-slate-400 truncate">Intelligence éco-responsable & locale</p>
+                    </div>
+                </div>
+            </header>
+
+            <div id="chatMessages" class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-6"></div>
+
+            <div class="p-3 sm:p-4 bg-slate-900/40 border-t border-slate-700/40 backdrop-blur-md shrink-0">
+                <div class="max-w-4xl mx-auto relative flex items-center bg-slate-800/70 border border-slate-700/60 rounded-2xl p-2 shadow-lg focus-within:border-emerald-500 transition">
+                    <textarea id="userInput" rows="1" onkeydown="handleKeydown(event)" oninput="autoResizeTextarea(this)" placeholder="Écrivez votre message à Ekoia..." class="flex-1 bg-transparent border-0 text-slate-200 placeholder-slate-400 focus:outline-none resize-none max-h-32 px-3 py-2 text-sm custom-scrollbar"></textarea>
+                    <button onclick="sendMessage()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white w-9 h-9 rounded-xl flex items-center justify-center transition shadow-md ml-1 shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-arrow-up text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SCRIPT BLINDÉ POUR LA COPIE ET LE TÉLÉCHARGEMENT DES SCRIPTS LONGS -->
+    <script>
+        let chats = JSON.parse(localStorage.getItem('ekoia_chats_v540')) || [];
+        let currentChatId = localStorage.getItem('ekoia_current_chat_v540') || null;
+        let apiRequestsCount = parseInt(localStorage.getItem('ekoia_api_requests')) || 0;
+        let availableVoices = [];
+        let selectedVoiceIndex = 0;
+        let sidebarOpen = true;
+        let currentTheme = localStorage.getItem('ekoia_theme') || 'medium';
+        let isPhoneMode = false;
+        let lastMessageTime = 0;
+        
+        // Registre en mémoire pour stocker les codes bruts par ID unique (immunise contre les coupures de longs scripts)
+        window.codeSnippetRegistry = {};
+
+        const strictReadableMathRule = " INTERDICTION ABSOLUE D'UTILISER LE LATEX OU DE CODER DES FRACTIONS AVEC \\frac. Écris TOUTES les fractions et calculs sous forme de texte linéaire ultra-clair et lisible pour un humain (par exemple : 'AD / DB = AE / EC' ou '14 sur 20').";
+
+        const entities = {
+            normal: {
+                name: 'Ekoia Standard', desc: 'Assistant éco-responsable', icon: 'fa-solid fa-leaf', isNew: false,
+                prompt: 'Tu es Ekoia, un assistant virtuel éco-responsable et confidentiel. Parle toujours à la première personne ("je").' + strictReadableMathRule
+            },
+            vito: {
+                name: 'Vito Scaletta', desc: 'Mafia II - Années 50', icon: 'fa-solid fa-user-tie', isNew: true,
+                prompt: 'Tu es Vito Scaletta, membre de la pègre d\'Empire Bay dans les années 50. Parle toujours à la première personne ("je").' + strictReadableMathRule
+            },
+            staline: {
+                name: 'Staline', desc: 'Discipline de fer & soviétique', icon: 'fa-solid fa-star', isNew: true,
+                prompt: 'Tu es Joseph Staline. Autoritaire, stratégique, parlant à la première personne ("je").' + strictReadableMathRule
+            },
+            radin: {
+                name: 'Le Radin', desc: 'Obsédé par les économies', icon: 'fa-solid fa-coins', isNew: true,
+                prompt: 'Tu es un radin invétéré, obsédé par le moindre centime et râlant sur l\'inflation. Parle toujours à la première personne ("je").' + strictReadableMathRule
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            applyTheme(currentTheme);
+            loadSystemVoices();
+            if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = loadSystemVoices;
+            updateGreenImpactUI();
+
+            if (chats.length === 0) {
+                createChatWithEntity('normal');
+            } else {
+                if (!currentChatId || !chats.some(c => c.id === currentChatId)) currentChatId = chats[0].id;
+                loadChat(currentChatId);
+            }
+            renderChatHistory();
+        });
+
+        function selectDevice(mode) {
+            document.getElementById('deviceSelectModal').classList.add('hidden');
+            if (mode === 'phone') {
+                isPhoneMode = true;
+                document.getElementById('appContainer').classList.add('device-phone-frame');
+                toggleSidebar();
+            }
+        }
+
+        function applyTheme(theme) {
+            currentTheme = theme;
+            localStorage.setItem('ekoia_theme', theme);
+            document.body.className = `h-screen flex items-center justify-center overflow-hidden theme-${theme} p-2`;
+            document.getElementById('themeSelect').value = theme;
+        }
+
+        function changeTheme(theme) { applyTheme(theme); }
+
+        function openSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+            document.getElementById('settingsModal').classList.add('flex');
+        }
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsModal').classList.remove('flex');
+        }
+
+        function openEntitySelectModal() {
+            const grid = document.getElementById('entityGridModal');
+            grid.innerHTML = '';
+            Object.keys(entities).forEach(key => {
+                const ent = entities[key];
+                const card = document.createElement('div');
+                card.className = 'p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl cursor-pointer transition flex items-center justify-between';
+                card.onclick = () => createChatWithEntity(key);
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl ekoia-badge-bg text-emerald-400 flex items-center justify-center text-sm"><i class="${ent.icon}"></i></div>
+                        <div><h4 class="font-semibold text-xs text-white">${ent.name}</h4><p class="text-[10px] text-slate-400">${ent.desc}</p></div>
+                    </div>
+                    ${ent.isNew ? '<span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">NOUVEAU</span>' : ''}
+                `;
+                grid.appendChild(card);
+            });
+            document.getElementById('entitySelectModal').classList.remove('hidden');
+            document.getElementById('entitySelectModal').classList.add('flex');
+        }
+
+        function closeEntitySelectModal() {
+            document.getElementById('entitySelectModal').classList.add('hidden');
+            document.getElementById('entitySelectModal').classList.remove('flex');
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification bg-slate-900 border border-emerald-500/50 text-emerald-300 text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 backdrop-blur-md';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function toggleSidebar() {
+            sidebarOpen = !sidebarOpen;
+            const sidebar = document.getElementById('sidebar');
+            sidebar.style.marginLeft = sidebarOpen ? '0px' : '-280px';
+            sidebar.style.opacity = sidebarOpen ? '1' : '0';
+            sidebar.style.pointerEvents = sidebarOpen ? 'auto' : 'none';
+        }
+
+        function createChatWithEntity(entityKey) {
+            closeEntitySelectModal();
+            const newChat = { id: 'chat_' + Date.now(), title: entities[entityKey].name, entity: entityKey, messages: [] };
+            chats.unshift(newChat);
+            currentChatId = newChat.id;
+            saveChats();
+            renderChatHistory();
+            loadChat(currentChatId);
+            if (isPhoneMode) toggleSidebar();
+        }
+
+        function deleteChat(e, id) {
+            e.stopPropagation();
+            chats = chats.filter(c => c.id !== id);
+            if (chats.length === 0) createChatWithEntity('normal');
+            else if (currentChatId === id) { currentChatId = chats[0].id; loadChat(currentChatId); }
+            saveChats();
+            renderChatHistory();
+        }
+
+        function saveChats() {
+            localStorage.setItem('ekoia_chats_v540', JSON.stringify(chats));
+            localStorage.setItem('ekoia_current_chat_v540', currentChatId);
+        }
+
+        function renderChatHistory() {
+            const list = document.getElementById('chatHistoryList');
+            list.innerHTML = '';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const ent = entities[chat.entity] || entities['normal'];
+                const div = document.createElement('div');
+                div.className = `group flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition ${isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-300 hover:bg-slate-800/50'}`;
+                div.onclick = () => { switchChat(chat.id); if (isPhoneMode) toggleSidebar(); };
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 truncate flex-1"><i class="${ent.icon} text-emerald-400 text-xs"></i><span class="truncate">${escapeHtml(chat.title)}</span></div>
+                    <button onclick="deleteChat(event, '${chat.id}')" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-400 transition cursor-pointer shrink-0" title="Supprimer"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function switchChat(id) { currentChatId = id; saveChats(); renderChatHistory(); loadChat(id); }
+
+        function loadChat(id) {
+            const chat = chats.find(c => c.id === id);
+            if (!chat) return;
+            const ent = entities[chat.entity] || entities['normal'];
+            document.getElementById('currentEntityIcon').className = ent.icon;
+            document.getElementById('currentEntityName').textContent = ent.name;
+            document.getElementById('currentEntityDesc').textContent = ent.desc;
+
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            if (chat.messages.length === 0) {
+                container.innerHTML = `<div class="flex items-start gap-3 my-4"><div class="w-8 h-8 rounded-xl ekoia-badge-bg text-emerald-400 flex items-center justify-center"><i class="${ent.icon}"></i></div><div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-xs text-slate-200">Bonjour ! Posez vos questions à ${ent.name}. Vos interactions soutiennent la reforestation.</div></div>`;
+            } else {
+                chat.messages.forEach(msg => appendMessageDOM(msg.role, msg.content, msg.entity));
+            }
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function loadSystemVoices() {
+            if (!('speechSynthesis' in window)) return;
+            availableVoices = window.speechSynthesis.getVoices();
+            const select = document.getElementById('voiceSelectDropdown');
+            select.innerHTML = '';
+            
+            let williamIndex = -1;
+            availableVoices.forEach((v, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.className = 'bg-slate-900 text-slate-200';
+                opt.textContent = `${idx + 1}. ${v.name} (${v.lang})`;
+                
+                if (v.name.includes("William") && v.name.includes("Multilingual")) {
+                    williamIndex = idx;
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+
+            if (williamIndex !== -1) {
+                selectedVoiceIndex = williamIndex;
+            } else if (availableVoices.length > 0) {
+                selectedVoiceIndex = 0;
+            }
+        }
+
+        function changeSystemVoice(val) {
+            selectedVoiceIndex = parseInt(val);
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+
+        function speakText(text) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const clean = text.replace(/[*_#`=-]/g, ' ').replace(/\s+/g, ' ').trim();
+            const utterance = new SpeechSynthesisUtterance(clean);
+            if (availableVoices.length > 0 && availableVoices[selectedVoiceIndex]) {
+                utterance.voice = availableVoices[selectedVoiceIndex];
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function stopSpeech() { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }
+
+        function handleKeydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        function autoResizeTextarea(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+        // SYSTÈME DE BLINDAGE DES SCRIPTS LONGS (Utilisation d'un registre sécurisé en mémoire)
+        function formatMessageContent(text) {
+            const codeBlockRegex = /```([a-z]*)\n([\s\S]*?)```/g;
+            if (!codeBlockRegex.test(text)) return `<div class="whitespace-pre-wrap select-text">${escapeHtml(text)}</div>`;
+            
+            let formatted = text.replace(codeBlockRegex, (match, lang, code) => {
+                const cleanCode = code.trim();
+                const snippetId = 'snippet_' + Math.random().toString(36).substring(2, 11);
+                window.codeSnippetRegistry[snippetId] = cleanCode;
+                const fileExt = lang || 'py';
+                
+                return `
+                    <div class="my-3 bg-slate-950 border border-slate-700 rounded-xl overflow-hidden shadow-lg select-text">
+                        <div class="bg-slate-900 px-3 py-1.5 flex items-center justify-between border-b border-slate-800 text-[10px] text-slate-400">
+                            <span class="font-bold uppercase text-emerald-400">${lang || 'code'}</span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="copySnippet('${snippetId}')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded transition flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-copy"></i> Copier</button>
+                                <button onclick="downloadSnippet('${snippetId}', '${fileExt}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-download"></i> Télécharger</button>
+                            </div>
+                        </div>
+                        <pre class="p-3 text-[11px] text-emerald-300 overflow-x-auto custom-scrollbar font-mono"><code>${escapeHtml(cleanCode)}</code></pre>
+                    </div>
+                `;
+            });
+            return `<div class="whitespace-pre-wrap">${formatted}</div>`;
+        }
+
+        function copySnippet(snippetId) {
+            const code = window.codeSnippetRegistry[snippetId] || '';
+            navigator.clipboard.writeText(code).then(() => {
+                showToast("Le code a été copié dans le presse-papier !");
+            }).catch(() => {
+                // Fallback de secours robuste
+                const textarea = document.createElement('textarea');
+                textarea.value = code;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast("Le code a été copié !");
+            });
+        }
+
+        function downloadSnippet(snippetId, ext) {
+            const code = window.codeSnippetRegistry[snippetId] || '';
+            const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `script_${Date.now()}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Téléchargement du script lancé !");
+        }
+
+        async function sendMessage() {
+            const now = Date.now();
+            if (now - lastMessageTime < 15000) {
+                const remaining = Math.ceil((15000 - (now - lastMessageTime)) / 1000);
+                showToast(`Patientez encore ${remaining}s (fluidité 15s).`);
+                return;
+            }
+
+            const input = document.getElementById('userInput');
+            let text = input.value.trim();
+            if (!text) return;
+
+            input.value = ''; input.style.height = 'auto';
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            appendMessageDOM('user', text, chat.entity);
+            saveMessageToChat('user', text);
+            
+            apiRequestsCount++;
+            localStorage.setItem('ekoia_api_requests', apiRequestsCount);
+            updateGreenImpactUI();
+
+            if (chat.messages.length <= 2) {
+                chat.title = text.length > 22 ? text.substring(0, 22) + '...' : entities[chat.entity].name;
+                renderChatHistory();
+            }
+
+            const ent = entities[chat.entity] || entities['normal'];
+            const container = document.getElementById('chatMessages');
+            const streamId = 'stream_' + Date.now();
+            const div = document.createElement('div');
+            div.className = 'flex items-start gap-3 my-4';
+            div.id = streamId;
+            div.innerHTML = `
+                <div class="w-8 h-8 rounded-xl ekoia-badge-bg text-emerald-400 flex items-center justify-center shrink-0 mt-0.5"><i class="${ent.icon}"></i></div>
+                <div class="max-w-[85%] bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-2xl p-4 text-xs leading-relaxed shadow-sm space-y-2">
+                    <p class="font-semibold text-emerald-400 text-[11px]">${ent.name}</p>
+                    <div id="${streamId}_text" class="whitespace-pre-wrap cursor-blink"></div>
+                </div>
+            `;
+            container.appendChild(div); container.scrollTop = container.scrollHeight;
+
+            const textContainer = document.getElementById(`${streamId}_text`);
+            lastMessageTime = Date.now();
+
+            try {
+                const response = await fetch('https://text.pollinations.ai/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [
+                            { role: 'system', content: ent.prompt + ' Si tu fournis du code source long ou court, regroupe-le toujours dans un seul bloc markdown sans le couper.' },
+                            { role: 'user', content: text }
+                        ],
+                        model: 'openai'
+                    })
+                });
+                let replyText = await response.text();
+
+                if (replyText.includes("Free limit reached") || replyText.includes("token_limit_exceeded")) {
+                    replyText = "Oups, le service public est un peu saturé. Attendez quelques secondes et réessayez, mon soldat !";
+                }
+
+                textContainer.classList.remove('cursor-blink');
+                const parentBox = textContainer.closest('.max-w-\\[85\\%\\]');
+                parentBox.innerHTML = `
+                    <p class="font-semibold text-emerald-400 text-[11px]">${ent.name}</p>
+                    ${formatMessageContent(replyText)}
+                    <div class="audio-controls flex items-center gap-2 pt-2 border-t border-slate-700/30 mt-2">
+                        <button onclick="speakText(${JSON.stringify(replyText).replace(/"/g, '&quot;')})" class="text-slate-400 hover:text-emerald-400 transition flex items-center gap-1 text-[11px] cursor-pointer"><i class="fa-solid fa-volume-high"><span> Écouter</span></i></button>
+                        <button onclick="stopSpeech()" class="text-slate-400 hover:text-red-400 transition flex items-center gap-1 text-[11px] cursor-pointer"><i class="fa-solid fa-volume-xmark"><span> Couper</span></i></button>
+                    </div>
+                `;
+                saveMessageToChat('assistant', replyText);
+                speakText(replyText);
+            } catch(err) {
+                textContainer.classList.remove('cursor-blink');
+                textContainer.innerText = "Désolé, une erreur réseau est survenue.";
+            }
+        }
+
+        function appendMessageDOM(role, text, entityKey) {
+            const container = document.getElementById('chatMessages');
+            const isUser = role === 'user';
+            const ent = entities[entityKey || 'normal'];
+            const div = document.createElement('div');
+            div.className = `flex items-start gap-3 my-4 ${isUser ? 'flex-row-reverse' : ''}`;
+            div.innerHTML = `
+                <div class="w-8 h-8 rounded-xl ${isUser ? 'bg-indigo-600/20 border border-indigo-500/30 text-indigo-400' : 'ekoia-badge-bg text-emerald-400'} flex items-center justify-center shrink-0 mt-0.5">
+                    ${isUser ? '<i class="fa-solid fa-user"></i>' : `<i class="${ent.icon}"></i>`}
+                </div>
+                <div class="max-w-[85%] ${isUser ? 'bg-indigo-600/20 border border-indigo-500/30 text-slate-100' : 'bg-slate-800/50 border border-slate-700/50 text-slate-200'} rounded-2xl p-4 text-xs leading-relaxed shadow-sm space-y-2">
+                    ${!isUser ? `<p class="font-semibold text-emerald-400 text-[11px]">${ent.name}</p>` : ''}
+                    <div>${isUser ? escapeHtml(text) : formatMessageContent(text)}</div>
+                    ${!isUser ? `
+                        <div class="audio-controls flex items-center gap-2 pt-2 border-t border-slate-700/30 mt-2">
+                            <button onclick="speakText(${JSON.stringify(text).replace(/"/g, '&quot;')})" class="text-slate-400 hover:text-emerald-400 transition flex items-center gap-1 text-[11px] cursor-pointer"><i class="fa-solid fa-volume-high"><span> Écouter</span></i></button>
+                            <button onclick="stopSpeech()" class="text-slate-400 hover:text-red-400 transition flex items-center gap-1 text-[11px] cursor-pointer"><i class="fa-solid fa-volume-xmark"><span> Couper</span></i></button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            container.appendChild(div); container.scrollTop = container.scrollHeight;
+        }
+
+        function saveMessageToChat(role, content) {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (chat) { chat.messages.push({ role, content }); saveChats(); }
+        }
+
+        function updateGreenImpactUI() {
+            const calculatedTrees = (apiRequestsCount / 45).toFixed(2);
+            document.getElementById('ecosiaBadge').innerHTML = `<i class="fa-solid fa-seedling"></i> ${calculatedTrees} arbres financés`;
+        }
+
+        function escapeHtml(t) { return t.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
+    </script>
+</body>
+</html>
